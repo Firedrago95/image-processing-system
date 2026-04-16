@@ -16,6 +16,9 @@
 - **Service:** 비즈니스 로직과 외부 메시지 브로커(Kafka) 연동을 담당하며, 도메인 엔티티를 캡슐화하여 보호합니다.
 - **Global Exception Handling:** 시스템 전반에서 발생하는 예외(`BusinessException` 등)를 일관된 에러 응답 포맷으로 처리하기 위한 공통 구조를 구축했습니다.
 
+### 작업 상태 모델 설계 (Task Status)
+- 작업의 생명주기를 PENDING ➔ PROCESSING ➔ COMPLETED / FAILED 4단계로 정의했습니다
+
 ## 3. 테스트 전략
 Mock에 과도하게 의존하기보다, 실제 인프라 환경에서의 동작을 보장하는 데 초점을 맞추었습니다.
 - **통합 테스트 (Integration Test):** `Testcontainers`를 사용하여 실제 MySQL, Kafka, Redis 컨테이너를 일시적으로 구동한 상태에서 전체 흐름을 검증합니다.
