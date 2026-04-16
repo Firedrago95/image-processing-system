@@ -16,7 +16,7 @@
 - **Service:** 비즈니스 로직과 외부 메시지 브로커(Kafka) 연동을 담당하며, 도메인 엔티티를 캡슐화하여 보호합니다.
 - **Global Exception Handling:** 시스템 전반에서 발생하는 예외(`BusinessException` 등)를 일관된 에러 응답 포맷으로 처리하기 위한 공통 구조를 구축했습니다.
 
-### 작업 상태 모델 설계 (Task Status)
+### 작업 상태 모델 설계
 - 작업의 생명주기를 PENDING ➔ PROCESSING ➔ COMPLETED / FAILED 4단계로 정의했습니다
 
 ## 3. 테스트 전략
