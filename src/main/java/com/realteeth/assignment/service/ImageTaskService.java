@@ -1,6 +1,8 @@
 package com.realteeth.assignment.service;
 
 import com.realteeth.assignment.domain.ImageTask;
+import com.realteeth.assignment.global.exception.BusinessException;
+import com.realteeth.assignment.global.exception.ErrorCode;
 import com.realteeth.assignment.repository.ImageTaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -32,7 +34,7 @@ public class ImageTaskService {
         } catch (DataIntegrityViolationException e) {
             return imageTaskRepository.findByIdempotencyKey(idempotencyKey)
                 .map(ImageTask::getId)
-                .orElseThrow(() -> new IllegalStateException("중복 키가 존재하지만 레코드를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
         }
     }
 }

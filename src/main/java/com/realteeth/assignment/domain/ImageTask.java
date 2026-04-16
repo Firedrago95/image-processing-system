@@ -1,5 +1,7 @@
 package com.realteeth.assignment.domain;
 
+import com.realteeth.assignment.global.exception.BusinessException;
+import com.realteeth.assignment.global.exception.ErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -9,7 +11,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 import lombok.Builder;
@@ -55,24 +56,24 @@ public class ImageTask {
         this.status = TaskStatus.PENDING;
     }
 
-    public void startProcessing() throws IllegalAccessException {
+    public void startProcessing() {
         if (this.status != TaskStatus.PENDING) {
-            throw new IllegalAccessException("PENDING 상태에서만 PROCESSING 으로 전환할 수 있습니다.");
+            throw new BusinessException(ErrorCode.INVALID_TASK_STATUS);
         }
         this.status = TaskStatus.PROCESSING;
     }
 
-    public void complete(String resultData) throws IllegalAccessException {
+    public void complete(String resultData) {
         if (this.status != TaskStatus.PROCESSING) {
-            throw new IllegalAccessException("PROCESSING 상태에서만 COMPLETED로 전환할 수 있습니다.");
+            throw new BusinessException(ErrorCode.INVALID_TASK_STATUS);
         }
         this.status = TaskStatus.COMPLETED;
         this.resultData = resultData;
     }
 
-    public void fail(String errorMessage) throws IllegalAccessException {
+    public void fail(String errorMessage) {
         if (this.status == TaskStatus.COMPLETED) {
-            throw new IllegalAccessException("이미 완료된 작업은 실패 처리할 수 없습니다.");
+            throw new BusinessException(ErrorCode.INVALID_TASK_STATUS);
         }
         this.status = TaskStatus.FAILED;
         this.resultData = errorMessage;
