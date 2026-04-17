@@ -4,6 +4,7 @@ import com.realteeth.assignment.global.exception.BusinessException;
 import com.realteeth.assignment.service.ImageTaskService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,7 @@ public class ImageTaskWorker {
 
     private final ImageTaskService imageTaskService;
     private final MockWorkerClient mockWorkerClient;
+    private final RetryTemplate externalApiRetryTemplate;
 
     @KafkaListener(topics = "image-process-topic", groupId = "image-worker-group")
     public void processTask(String message, Acknowledgment ack) {
@@ -31,7 +33,12 @@ public class ImageTaskWorker {
 
         try {
             log.info("이미지 처리 API 호출 시작 Task ID: {}", taskId);
-            mockWorkerClient.processImage(idempotencyKey);
+
+            externalApiRetryTemplate.execute(() -> {
+                log.info("이미지 처리 API 호출 시도");
+                mockWorkerClient.processImage(idempotencyKey);
+                return null;
+            });
 
             imageTaskService.markAsCompleted(taskId);
             log.info("이미지 처리 완료. Task ID: {}", taskId);
