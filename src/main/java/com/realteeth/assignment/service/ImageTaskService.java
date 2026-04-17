@@ -37,4 +37,29 @@ public class ImageTaskService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
         }
     }
+
+    @Transactional
+    public String markAsProcessing(Long taskId) {
+        ImageTask task = imageTaskRepository.findById(taskId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        task.startProcessing();
+        return task.getIdempotencyKey();
+    }
+
+    @Transactional
+    public void markAsCompleted(Long taskId) {
+        ImageTask task = imageTaskRepository.findById(taskId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        task.complete("success");
+    }
+
+    @Transactional
+    public void markAsFailed(Long taskId, String errorMessage) {
+        ImageTask task = imageTaskRepository.findById(taskId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        task.fail(errorMessage);
+    }
 }
