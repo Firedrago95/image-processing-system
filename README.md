@@ -63,7 +63,7 @@ Mock에 과도하게 의존하기보다, 실제 인프라 환경에서의 동작
 ./gradlew clean build -x test
 ```
 ### 인프라 및 앱 기동 (Docker Compose)
-- docker-compose.yml을 통해 MySQL, Redis, Kafka 환경을 한 번에 구축할 수 있습니다.
+- docker-compose.yml을 통해 MySQL, Kafka 환경을 한 번에 구축할 수 있습니다.
 ```bash
 docker-compose up -d --build
 ```
