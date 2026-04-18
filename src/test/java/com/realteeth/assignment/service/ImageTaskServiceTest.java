@@ -14,6 +14,7 @@ import com.realteeth.assignment.domain.ImageTask;
 import com.realteeth.assignment.global.exception.BusinessException;
 import com.realteeth.assignment.repository.ImageTaskRepository;
 import com.realteeth.assignment.worker.dto.response.TaskResultResponse;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -23,6 +24,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -100,5 +104,26 @@ class ImageTaskServiceTest {
         // when & then
         assertThatThrownBy(() -> imageTaskService.getTaskResult(invalidTaskId))
             .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void 작업_목록을_페이징하여_조회할_수_있다() {
+        // given
+        PageRequest pageRequest = PageRequest.of(0, 10);
+        ImageTask task1 = ImageTask.builder().idempotencyKey("key-1").build();
+        ImageTask task2 = ImageTask.builder().idempotencyKey("key-2").build();
+        ReflectionTestUtils.setField(task1, "id", 1L);
+        ReflectionTestUtils.setField(task2, "id", 2L);
+
+        Page<ImageTask> mockPage = new PageImpl<>(List.of(task1, task2), pageRequest, 2);
+        when(imageTaskRepository.findAll(pageRequest)).thenReturn(mockPage);
+
+        // when
+        Page<TaskResultResponse> result = imageTaskService.getTasks(pageRequest);
+
+        // then
+        assertThat(result.getContent()).hasSize(2);
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        assertThat(result.getContent().get(0).taskId()).isEqualTo(1L);
     }
 }

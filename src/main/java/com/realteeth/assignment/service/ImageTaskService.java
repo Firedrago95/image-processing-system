@@ -7,6 +7,8 @@ import com.realteeth.assignment.repository.ImageTaskRepository;
 import com.realteeth.assignment.worker.dto.response.TaskResultResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,14 +41,6 @@ public class ImageTaskService {
         }
     }
 
-    @Transactional(readOnly = true)
-    public TaskResultResponse getTaskResult(Long taskId) {
-        ImageTask task = imageTaskRepository.findById(taskId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
-
-        return TaskResultResponse.from(task);
-    }
-
     @Transactional
     public String markAsProcessing(Long taskId) {
         ImageTask task = imageTaskRepository.findById(taskId)
@@ -70,5 +64,20 @@ public class ImageTaskService {
             .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         task.fail(errorMessage);
+    }
+
+
+    @Transactional(readOnly = true)
+    public TaskResultResponse getTaskResult(Long taskId) {
+        ImageTask task = imageTaskRepository.findById(taskId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        return TaskResultResponse.from(task);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<TaskResultResponse> getTasks(Pageable pageable) {
+        return imageTaskRepository.findAll(pageable)
+            .map(TaskResultResponse::from);
     }
 }

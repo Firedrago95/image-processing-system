@@ -4,6 +4,10 @@ import com.realteeth.assignment.controller.dto.response.TaskResponse;
 import com.realteeth.assignment.service.ImageTaskService;
 import com.realteeth.assignment.worker.dto.response.TaskResultResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,5 +38,13 @@ public class ImageTaskController {
     public ResponseEntity<TaskResultResponse> getTaskResult(@PathVariable Long taskId) {
         TaskResultResponse response = imageTaskService.getTaskResult(taskId);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/tasks")
+    public ResponseEntity<Page<TaskResultResponse>> getTasks(
+        @PageableDefault(size = 10, sort="createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        Page<TaskResultResponse> responses = imageTaskService.getTasks(pageable);
+        return ResponseEntity.ok(responses);
     }
 }
