@@ -2,9 +2,12 @@ package com.realteeth.assignment.controller;
 
 import com.realteeth.assignment.controller.dto.response.TaskResponse;
 import com.realteeth.assignment.service.ImageTaskService;
+import com.realteeth.assignment.worker.dto.response.TaskResultResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,5 +28,11 @@ public class ImageTaskController {
 
         return ResponseEntity.status(HttpStatus.ACCEPTED)
             .body(new TaskResponse(taskId));
+    }
+
+    @GetMapping("/{taskId}")
+    public ResponseEntity<TaskResultResponse> getTaskResult(@PathVariable Long taskId) {
+        TaskResultResponse response = imageTaskService.getTaskResult(taskId);
+        return ResponseEntity.ok(response);
     }
 }

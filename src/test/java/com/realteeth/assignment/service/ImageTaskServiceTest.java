@@ -1,6 +1,7 @@
 package com.realteeth.assignment.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -10,7 +11,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.realteeth.assignment.domain.ImageTask;
+import com.realteeth.assignment.global.exception.BusinessException;
 import com.realteeth.assignment.repository.ImageTaskRepository;
+import com.realteeth.assignment.worker.dto.response.TaskResultResponse;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -69,5 +72,33 @@ class ImageTaskServiceTest {
         // then
         assertThat(resultId).isEqualTo(2L);
         verify(kafkaTemplate, never()).send(anyString(), anyString());
+    }
+
+    @Test
+    void 작업_ID로_현재_진행_상태를_조회할_수_있다() {
+        // given
+        Long taskId = 1L;
+        ImageTask task = ImageTask.builder().idempotencyKey("inquiry-key").build();
+        ReflectionTestUtils.setField(task, "id", taskId);
+
+        when(imageTaskRepository.findById(taskId)).thenReturn(Optional.of(task));
+
+        // when
+        TaskResultResponse response = imageTaskService.getTaskResult(taskId);
+
+        // then
+        assertThat(response.taskId()).isEqualTo(taskId);
+        assertThat(response.status().name()).isEqualTo("PENDING");
+    }
+
+    @Test
+    void 존재하지_않는_작업_조회시_예외가_발생한다() {
+        // given
+        Long invalidTaskId = 999L;
+        when(imageTaskRepository.findById(invalidTaskId)).thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> imageTaskService.getTaskResult(invalidTaskId))
+            .isInstanceOf(BusinessException.class);
     }
 }

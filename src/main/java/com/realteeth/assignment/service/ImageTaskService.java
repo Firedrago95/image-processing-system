@@ -4,6 +4,7 @@ import com.realteeth.assignment.domain.ImageTask;
 import com.realteeth.assignment.global.exception.BusinessException;
 import com.realteeth.assignment.global.exception.ErrorCode;
 import com.realteeth.assignment.repository.ImageTaskRepository;
+import com.realteeth.assignment.worker.dto.response.TaskResultResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -36,6 +37,14 @@ public class ImageTaskService {
                 .map(ImageTask::getId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
         }
+    }
+
+    @Transactional(readOnly = true)
+    public TaskResultResponse getTaskResult(Long taskId) {
+        ImageTask task = imageTaskRepository.findById(taskId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        return TaskResultResponse.from(task);
     }
 
     @Transactional
