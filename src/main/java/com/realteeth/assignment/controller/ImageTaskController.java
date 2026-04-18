@@ -18,13 +18,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/v1/images")
+@RequestMapping("/v1/images/tasks")
 @RequiredArgsConstructor
 public class ImageTaskController {
 
     private final ImageTaskService imageTaskService;
 
-    @PostMapping("/tasks")
+    @PostMapping
     public ResponseEntity<TaskResponse> processImage(
         @RequestHeader("Idempotency-Key") String idempotencyKey
     ) {
@@ -40,7 +40,7 @@ public class ImageTaskController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/tasks")
+    @GetMapping
     public ResponseEntity<Page<TaskResultResponse>> getTasks(
         @PageableDefault(size = 10, sort="createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
