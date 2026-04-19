@@ -69,6 +69,10 @@ docker-compose up -d --build
 ```
 ### 테스트 및 커버리지 확인
 - JaCoCo 플러그인을 통해 테스트 성공 여부 및 커버리지 리포트를 생성할 수 있습니다.
+- `Testcontainers` 를 사용한 통합 테스트 실행을 위해 반드시 `Docker`를 실행 후 테스트를 실행해야 합니다.
 ```bash
 ./gradlew test jacocoTestReport
+```
+```bash
+open build/reports/jacoco/test/html/index.html
 ```
