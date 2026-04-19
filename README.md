@@ -23,19 +23,19 @@ I/O 집약적인 Kafka Consumer 작업에 Java 21의 가상 스레드(Virtual Th
 - **Flow:** `PENDING` ➔ `PROCESSING` ➔ `COMPLETED` / `FAILED`
 - 엔티티 내부 로직을 통해 유효하지 않은 상태 전이(예: 완료된 작업의 재실행)를 원천 차단했습니다.
 
-### 3.2 서버 재시작 시의 데이터 복구 (Lazy Sync)
+### 3.2 서버 재시작 시의 데이터 복구
 - **문제 해결:** 과거 서버 다운 시 작업이 `PROCESSING` 상태로 고착되는 한계를 **지연 동기화** 방식으로 해결했습니다.
 - **동작 원리:** 워커가 외부 작업 등록 시 부여받은 `jobId`를 DB에 영속화합니다. 이후 서버가 재시작되더라도 클라이언트의 상태 조회 요청 시 저장된 `jobId`를 통해 외부 서버의 최신 상태를 확인하고 우리 DB를 자동으로 동기화합니다.
 
 ## 4. API 명세 및 문서화
-본 프로젝트는 **Spring REST Docs**를 통해 신뢰할 수 있는 API 문서를 제공합니다.
+본 프로젝트는 **Spring REST Docs**를 통해 API 문서를 제공합니다.
 
 | 문서명 | 경로 | 설명 |
 | :--- | :--- | :--- |
 | **API 가이드** | `/docs/index.html` | 전체 API의 요청/응답 스펙 및 예시를 제공합니다. |
 
 ## 5. 테스트 전략
-- **통합 테스트:** `Testcontainers`를 사용하여 실제 MySQL, Kafka 환경에서의 유실 없는 메시지 처리를 검증합니다.
+- **통합 테스트:** `Testcontainers`를 사용하여 실제 MySQL, Kafka 환경에서 비지니스 로직을 검증합니다.
 - **E2E 검증:** `TestRestTemplate`을 통해 비동기 처리 완료 후 상태 동기화가 정상적으로 이루어지는지 전체 흐름을 확인합니다.
 
 ## 6. 로컬 환경 실행 방법
@@ -59,6 +59,6 @@ docker-compose up -d --build
 open build/reports/jacoco/test/html/index.html
 ```
 ### API 명세 확인
-- Spring REST Docs를 사용하여 실제 테스트 케이스를 통과한 신뢰성 높은 명세를 제공합니다.
+- Spring REST Docs를 사용하여 실제 테스트 케이스를 통과한 API명세를 제공합니다.
 - 애플리케이션 기동 후 아래 주소로 접속하거나, 빌드 후 생성된 로컬 파일(`build/docs/asciidoc/index.html`)을 브라우저로 열어 직접 확인할 수 있습니다.
 - 접속 주소: http://localhost:8080/docs/index.html
