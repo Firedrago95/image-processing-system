@@ -1,18 +1,21 @@
-FROM gradle:8.6-jdk21-alpine AS builder
+FROM eclipse-temurin:21-jdk-jammy AS builder
 WORKDIR /build
 
+COPY gradlew .
+COPY gradle gradle
 COPY build.gradle settings.gradle ./
-RUN gradle dependencies --no-daemon || true
+
+RUN chmod +x ./gradlew
+RUN ./gradlew dependencies --no-daemon || true
 
 COPY src ./src
-RUN gradle clean build -x test --no-daemon
+RUN ./gradlew clean build -x test --no-daemon
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-RUN apk add --no-cache tzdata && \
-    cp /usr/share/zoneinfo/Asia/Seoul /etc/localtime && \
-    echo "Asia/Seoul" > /etc/timezone
+ENV TZ=Asia/Seoul
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 COPY --from=builder /build/build/libs/*-SNAPSHOT.jar app.jar
 
