@@ -22,7 +22,6 @@ public class ImageTaskService {
     private final ImageTaskRepository imageTaskRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    @Transactional
     public Long processImage(String idempotencyKey) {
         try {
             ImageTask newTask = ImageTask.builder()

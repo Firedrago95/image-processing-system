@@ -43,7 +43,7 @@ public class ImageTaskWorker {
             imageTaskService.markAsCompleted(taskId);
             log.info("이미지 처리 완료. Task ID: {}", taskId);
         } catch (Exception e) {
-            log.error("이미지 처리 API 호출 실패 Task ID: {}", taskId);
+            log.error("이미지 처리 API 호출 실패 Task ID: {}", taskId, e);
             imageTaskService.markAsFailed(taskId, e.getMessage());
         } finally {
             ack.acknowledge();

@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.listener.ContainerProperties;
 
 @Configuration
 public class KafkaConfig {
@@ -20,6 +21,8 @@ public class KafkaConfig {
         executor.setVirtualThreads(true);
 
         factory.getContainerProperties().setListenerTaskExecutor(executor);
+
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
 
         return factory;
     }
