@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.realteeth.assignment.domain.ImageTask;
+import com.realteeth.assignment.domain.TaskStatus;
 import com.realteeth.assignment.global.exception.BusinessException;
 import com.realteeth.assignment.repository.ImageTaskRepository;
 import com.realteeth.assignment.worker.dto.response.TaskResultResponse;
@@ -125,5 +126,103 @@ class ImageTaskServiceTest {
         assertThat(result.getContent()).hasSize(2);
         assertThat(result.getTotalElements()).isEqualTo(2);
         assertThat(result.getContent().get(0).taskId()).isEqualTo(1L);
+    }
+
+    @Test
+    void 작업을_PROCESSING_상태로_변경하고_멱등성키를_반환한다() {
+        // given
+        Long taskId = 1L;
+        String idempotencyKey = "process-key-123";
+        ImageTask task = ImageTask.builder().idempotencyKey(idempotencyKey).build();
+
+        when(imageTaskRepository.findById(taskId)).thenReturn(Optional.of(task));
+
+        // when
+        String returnedKey = imageTaskService.markAsProcessing(taskId);
+
+        // then
+        assertThat(returnedKey).isEqualTo(idempotencyKey);
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.PROCESSING);
+    }
+
+    @Test
+    void 작업을_COMPLETED_상태로_변경하고_결과를_저장한다() {
+        // given
+        Long taskId = 1L;
+        ImageTask task = ImageTask.builder().idempotencyKey("complete-key-123").build();
+        task.startProcessing();
+
+        when(imageTaskRepository.findById(taskId)).thenReturn(Optional.of(task));
+
+        // when
+        imageTaskService.markAsCompleted(taskId);
+
+        // then
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.COMPLETED);
+        assertThat(task.getResultData()).isEqualTo("success");
+    }
+
+    @Test
+    void 작업을_FAILED_상태로_변경하고_에러메시지를_저장한다() {
+        // given
+        Long taskId = 1L;
+        String errorMessage = "API Timeout";
+        ImageTask task = ImageTask.builder().idempotencyKey("fail-key-123").build();
+        task.startProcessing();
+
+        when(imageTaskRepository.findById(taskId)).thenReturn(Optional.of(task));
+
+        // when
+        imageTaskService.markAsFailed(taskId, errorMessage);
+
+        // then
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.FAILED);
+        assertThat(task.getResultData()).isEqualTo(errorMessage);
+    }
+
+    @Test
+    void 상태_변경_시_존재하지_않는_작업이면_예외가_발생한다() {
+        // given
+        Long invalidTaskId = 999L;
+        when(imageTaskRepository.findById(invalidTaskId)).thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> imageTaskService.markAsProcessing(invalidTaskId))
+            .isInstanceOf(BusinessException.class)
+            .hasMessageContaining("해당 작업을 찾을 수 없습니다");
+    }
+
+    @Test
+    void 작업완료_처리_시_존재하지_않는_작업이면_예외가_발생한다() {
+        // given
+        Long invalidTaskId = 999L;
+        when(imageTaskRepository.findById(invalidTaskId)).thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> imageTaskService.markAsCompleted(invalidTaskId))
+            .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void 작업실패_처리_시_존재하지_않는_작업이면_예외가_발생한다() {
+        // given
+        Long invalidTaskId = 999L;
+        when(imageTaskRepository.findById(invalidTaskId)).thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> imageTaskService.markAsFailed(invalidTaskId, "error message"))
+            .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void 중복_요청_발생_후_기존_작업_조회에_실패하면_예외가_발생한다() {
+        // given
+        String idempotencyKey = "ghost-key-123";
+        when(imageTaskRepository.save(any(ImageTask.class))).thenThrow(DataIntegrityViolationException.class);
+        when(imageTaskRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> imageTaskService.processImage(idempotencyKey))
+            .isInstanceOf(BusinessException.class);
     }
 }
