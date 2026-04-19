@@ -35,30 +35,37 @@ I/O 집약적인 Kafka Consumer 작업에 Java 21의 가상 스레드(Virtual Th
 | **API 가이드** | `/docs/index.html` | 전체 API의 요청/응답 스펙 및 예시를 제공합니다. |
 
 ## 5. 테스트 전략
-- **통합 테스트:** `Testcontainers`를 사용하여 실제 MySQL, Kafka 환경에서 비지니스 로직을 검증합니다.
-- **E2E 검증:** `TestRestTemplate`을 통해 비동기 처리 완료 후 상태 동기화가 정상적으로 이루어지는지 전체 흐름을 확인합니다.
+- **단위 테스트:** `Mockito`(`@Mock`, `@InjectMocks`)를 활용하여 Service 및 Worker 계층의 비즈니스 로직을 외부 인프라와 격리하여 빠르고 안정적으로 검증합니다.
+- **외부 API 검증:** `@RestClientTest`와 `MockRestServiceServer`를 사용하여 실제 통신 없이도 Mock Worker의 다양한 응답(성공, 실패, 지연 등) 상황을 시뮬레이션하여 재시도 및 예외 처리 로직을 검증합니다.
+- **통합 테스트:** `Testcontainers`를 사용하여 실제 MySQL, Kafka 환경을 일시적으로 구동하여, DB 제약조건과 메시지 큐 롤백/커밋 등 실제 인프라와의 연동을 검증합니다.
+- **E2E 및 문서화 검증:** `TestRestTemplate`을 통해 비동기 처리 완료 후 상태 동기화가 정상적으로 이루어지는지 전체 흐름을 확인하며, 이 과정에서 `Spring REST Docs`를 연동하여 API 명세서를 자동 생성합니다.
 
 ## 6. 로컬 환경 실행 방법
 
-### 애플리케이션 빌드
+### 6.1 실행하기
+- 애플리케이션 빌드부터 인프라 구성까지 아래 명령어를 통해 실행할 수 있습니다. 
+- 빌드 과정에서 `Spring REST Docs` 문서가 생성되므로, 빌드 후 기동하는 것을 권장합니다.
 ```bash
+# 1. 이전 빌드 청소 및 최신 코드 기반 애플리케이션 빌드
 ./gradlew clean build -x test
-```
-### 인프라 및 앱 기동 (Docker Compose)
-- docker-compose.yml을 통해 MySQL, Kafka 환경을 한 번에 구축할 수 있습니다.
-```bash
+
+# 2. Docker Compose를 통한 인프라(MySQL, Kafka) 및 앱 컨테이너 기동
 docker-compose up -d --build
 ```
-### 테스트 및 커버리지 확인
-- JaCoCo 플러그인을 통해 테스트 성공 여부 및 커버리지 리포트를 생성할 수 있습니다.
-- `Testcontainers` 를 사용한 통합 테스트 실행을 위해 반드시 `Docker`를 실행 후 테스트를 실행해야 합니다.
+### 6.2 테스트 및 커버리지 확인
+- `Testcontainers` 를 사용한 통합 테스트를 수행하며, JaCoCo 플러그인을 통해 테스트 성공 여부 및 커버리지 리포트를 생성할 수 있습니다.
+- **주의**: 로컬에 Docker가 반드시 구동 중이어야 합니다.
 ```bash
+# 테스트 수행 및 JaCoCo 커버리지 리포트 생성
 ./gradlew test jacocoTestReport
-```
-```bash
+
+# 생성된 커버리지 리포트 확인 (브라우저)
+# macOS:
 open build/reports/jacoco/test/html/index.html
+# Windows:
+start build/reports/jacoco/test/html/index.html
 ```
-### API 명세 확인
+### 6.3 API 명세 확인
 - Spring REST Docs를 사용하여 실제 테스트 케이스를 통과한 API명세를 제공합니다.
 - 애플리케이션 기동 후 아래 주소로 접속하거나, 빌드 후 생성된 로컬 파일(`build/docs/asciidoc/index.html`)을 브라우저로 열어 직접 확인할 수 있습니다.
 - 접속 주소: http://localhost:8080/docs/index.html
