@@ -55,7 +55,6 @@ public class ImageTaskService {
         return task.getImageUrl();
     }
 
-    // 🚀 2. 워커가 외부 서버 작업 등록 후 jobId를 매핑할 때 사용할 메서드
     @Transactional
     public void updateExternalJobId(Long taskId, String externalJobId) {
         ImageTask task = imageTaskRepository.findById(taskId)

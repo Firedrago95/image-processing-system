@@ -15,6 +15,7 @@ import com.realteeth.assignment.domain.TaskStatus;
 import com.realteeth.assignment.global.exception.BusinessException;
 import com.realteeth.assignment.repository.ImageTaskRepository;
 import com.realteeth.assignment.worker.MockWorkerClient;
+import com.realteeth.assignment.worker.dto.response.ProcessStatusResponse;
 import com.realteeth.assignment.worker.dto.response.TaskResultResponse;
 import java.util.List;
 import java.util.Optional;
@@ -246,8 +247,7 @@ class ImageTaskServiceTest {
 
         when(imageTaskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
-        com.realteeth.assignment.worker.dto.response.ProcessStatusResponse mockResponse =
-            new com.realteeth.assignment.worker.dto.response.ProcessStatusResponse(jobId, "COMPLETED", "success-result");
+        ProcessStatusResponse mockResponse = new ProcessStatusResponse(jobId, "COMPLETED", "success-result");
         when(mockWorkerClient.getJobStatus(jobId)).thenReturn(mockResponse);
 
         // when
@@ -290,5 +290,66 @@ class ImageTaskServiceTest {
         assertThatThrownBy(() -> imageTaskService.updateExternalJobId(invalidTaskId, jobId))
             .isInstanceOf(BusinessException.class)
             .hasMessageContaining("해당 작업을 찾을 수 없습니다");
+    }
+
+    @Test
+    void 상태_조회_시_상태가_PROCESSING이_아니라면_외부API를_호출하지_않는다() {
+        // given
+        Long taskId = 1L;
+        ImageTask task = ImageTask.builder().idempotencyKey("pending-task").imageUrl("http://test.jpg").build();
+        ReflectionTestUtils.setField(task, "id", taskId);
+
+        when(imageTaskRepository.findById(taskId)).thenReturn(Optional.of(task));
+
+        // when
+        imageTaskService.getTaskResult(taskId);
+
+        // then
+        verify(mockWorkerClient, never()).getJobStatus(anyString());
+    }
+
+    @Test
+    void 상태_조회_시_외부작업이_FAILED라면_DB도_FAILED로_동기화한다() {
+        // given
+        Long taskId = 1L;
+        String jobId = "ext-job-fail";
+        ImageTask task = ImageTask.builder().idempotencyKey("fail-sync").imageUrl("http://test.jpg").build();
+        ReflectionTestUtils.setField(task, "id", taskId);
+        task.startProcessing(); // 상태를 PROCESSING으로
+        task.updateExternalJobId(jobId);
+
+        when(imageTaskRepository.findById(taskId)).thenReturn(Optional.of(task));
+
+        ProcessStatusResponse mockResponse = new ProcessStatusResponse(jobId, "FAILED", "처리 불가 이미지 형식");
+        when(mockWorkerClient.getJobStatus(jobId)).thenReturn(mockResponse);
+
+        // when
+        TaskResultResponse response = imageTaskService.getTaskResult(taskId);
+
+        // then
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.FAILED);
+        assertThat(response.status()).isEqualTo(TaskStatus.FAILED);
+        assertThat(response.resultData()).isEqualTo("처리 불가 이미지 형식");
+    }
+
+    @Test
+    void 상태_조회_시_외부API_호출_중_예외가_발생해도_기존_상태를_유지하며_정상_반환한다() {
+        // given
+        Long taskId = 1L;
+        String jobId = "ext-job-timeout";
+        ImageTask task = ImageTask.builder().idempotencyKey("error-resilience").imageUrl("http://test.jpg").build();
+        ReflectionTestUtils.setField(task, "id", taskId);
+        task.startProcessing();
+        task.updateExternalJobId(jobId);
+
+        when(imageTaskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(mockWorkerClient.getJobStatus(jobId)).thenThrow(new RuntimeException("Connection Timeout"));
+
+        // when
+        TaskResultResponse response = imageTaskService.getTaskResult(taskId);
+
+        // then
+        assertThat(response.status()).isEqualTo(TaskStatus.PROCESSING);
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.PROCESSING);
     }
 }
