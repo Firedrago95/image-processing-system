@@ -1,6 +1,8 @@
 package com.realteeth.assignment.worker;
 
 import com.realteeth.assignment.worker.dto.request.ProcessRequest;
+import com.realteeth.assignment.worker.dto.response.ProcessStartResponse;
+import com.realteeth.assignment.worker.dto.response.ProcessStatusResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -21,11 +23,18 @@ public class MockWorkerClient {
             .build();
     }
 
-    public void processImage(String idempotencyKey) {
-        restClient.post()
+    public ProcessStartResponse processImage(String imageUrl) {
+        return restClient.post()
             .uri("/process")
-            .body(new ProcessRequest(idempotencyKey))
+            .body(new ProcessRequest(imageUrl))
             .retrieve()
-            .toBodilessEntity();
+            .body(ProcessStartResponse.class);
+    }
+
+    public ProcessStatusResponse getJobStatus(String jobId) {
+        return restClient.get()
+            .uri("/process/{job_id}", jobId)
+            .retrieve()
+            .body(ProcessStatusResponse.class);
     }
 }

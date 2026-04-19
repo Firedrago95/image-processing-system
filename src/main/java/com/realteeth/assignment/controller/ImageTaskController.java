@@ -1,5 +1,6 @@
 package com.realteeth.assignment.controller;
 
+import com.realteeth.assignment.controller.dto.request.TaskRequest;
 import com.realteeth.assignment.controller.dto.response.TaskResponse;
 import com.realteeth.assignment.service.ImageTaskService;
 import com.realteeth.assignment.worker.dto.response.TaskResultResponse;
@@ -13,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,9 +28,10 @@ public class ImageTaskController {
 
     @PostMapping
     public ResponseEntity<TaskResponse> processImage(
-        @RequestHeader("Idempotency-Key") String idempotencyKey
+        @RequestHeader("Idempotency-Key") String idempotencyKey,
+        @RequestBody TaskRequest request
     ) {
-        Long taskId = imageTaskService.processImage(idempotencyKey);
+        Long taskId = imageTaskService.processImage(idempotencyKey, request.imageUrl());
 
         return ResponseEntity.status(HttpStatus.ACCEPTED)
             .body(new TaskResponse(taskId));

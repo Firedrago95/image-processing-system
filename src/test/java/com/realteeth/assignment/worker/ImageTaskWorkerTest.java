@@ -3,7 +3,6 @@ package com.realteeth.assignment.worker;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -12,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.realteeth.assignment.global.exception.BusinessException;
 import com.realteeth.assignment.global.exception.ErrorCode;
 import com.realteeth.assignment.service.ImageTaskService;
+import com.realteeth.assignment.worker.dto.response.ProcessStartResponse;
 import java.time.Duration;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -52,20 +52,23 @@ class ImageTaskWorkerTest {
     private ImageTaskWorker imageTaskWorker;
 
     @Test
-    void 이미지_처리_전체_과정이_성공하면_COMPLETED로_변경되고_커밋된다() {
+    void 이미지_처리_등록이_성공하면_ExternalJobId를_업데이트하고_커밋한다() {
         // given
         String message = "1";
         Long taskId = 1L;
-        String idempotencyKey = "test-key";
+        String imageUrl = "http://example.com/test.jpg";
+        String jobId = "mock-job-123";
+        ProcessStartResponse mockResponse = new ProcessStartResponse(jobId, "PROCESSING");
 
-        when(imageTaskService.markAsProcessing(taskId)).thenReturn(idempotencyKey);
+        when(imageTaskService.markAsProcessing(taskId)).thenReturn(imageUrl);
+        when(mockWorkerClient.processImage(imageUrl)).thenReturn(mockResponse);
 
         // when
         imageTaskWorker.processTask(message, acknowledgment);
 
         // then
-        verify(mockWorkerClient, times(1)).processImage(idempotencyKey);
-        verify(imageTaskService, times(1)).markAsCompleted(taskId);
+        verify(mockWorkerClient, times(1)).processImage(imageUrl);
+        verify(imageTaskService, times(1)).updateExternalJobId(taskId, jobId);
         verify(acknowledgment, times(1)).acknowledge();
     }
 
@@ -83,31 +86,33 @@ class ImageTaskWorkerTest {
 
         // then
         verify(mockWorkerClient, never()).processImage(anyString());
-        verify(imageTaskService, never()).markAsCompleted(anyLong());
+        verify(imageTaskService, never()).updateExternalJobId(anyLong(), anyString());
         verify(imageTaskService, never()).markAsFailed(anyLong(), anyString());
         verify(acknowledgment, times(1)).acknowledge();
     }
 
     @Test
-    void 외부_API_호출이_2번_실패후_3번째에_성공하면_COMPLETED로_변경된다() {
+    void 외부_API_호출이_2번_실패후_3번째에_성공하면_ExternalJobId를_업데이트한다() {
         // given
         String message = "4";
         Long taskId = 4L;
-        String idempotencyKey = "test-key";
+        String imageUrl = "http://example.com/test.jpg";
+        String jobId = "mock-job-456";
+        ProcessStartResponse mockResponse = new ProcessStartResponse(jobId, "PROCESSING");
 
-        when(imageTaskService.markAsProcessing(taskId)).thenReturn(idempotencyKey);
+        when(imageTaskService.markAsProcessing(taskId)).thenReturn(imageUrl);
 
-        doThrow(new RuntimeException("API 1차 실패"))
-            .doThrow(new RuntimeException("API 2차 실패"))
-            .doNothing()
-            .when(mockWorkerClient).processImage(idempotencyKey);
+        when(mockWorkerClient.processImage(imageUrl))
+            .thenThrow(new RuntimeException("API 1차 실패"))
+            .thenThrow(new RuntimeException("API 2차 실패"))
+            .thenReturn(mockResponse);
 
         // when
         imageTaskWorker.processTask(message, acknowledgment);
 
         // then
-        verify(mockWorkerClient, times(3)).processImage(idempotencyKey);
-        verify(imageTaskService, times(1)).markAsCompleted(taskId);
+        verify(mockWorkerClient, times(3)).processImage(imageUrl);
+        verify(imageTaskService, times(1)).updateExternalJobId(taskId, jobId);
         verify(imageTaskService, never()).markAsFailed(anyLong(), anyString());
         verify(acknowledgment, times(1)).acknowledge();
     }
@@ -117,17 +122,17 @@ class ImageTaskWorkerTest {
         // given
         String message = "3";
         Long taskId = 3L;
-        String idempotencyKey = "test-key";
+        String imageUrl = "http://example.com/test.jpg";
 
-        when(imageTaskService.markAsProcessing(taskId)).thenReturn(idempotencyKey);
-        doThrow(new RuntimeException("API Timeout")).when(mockWorkerClient).processImage(idempotencyKey);
+        when(imageTaskService.markAsProcessing(taskId)).thenReturn(imageUrl);
+        when(mockWorkerClient.processImage(imageUrl)).thenThrow(new RuntimeException("API Timeout"));
 
         // when
         imageTaskWorker.processTask(message, acknowledgment);
 
         // then
-        verify(mockWorkerClient, times(3)).processImage(idempotencyKey);
-        verify(imageTaskService, never()).markAsCompleted(anyLong());
+        verify(mockWorkerClient, times(3)).processImage(imageUrl);
+        verify(imageTaskService, never()).updateExternalJobId(anyLong(), anyString());
         verify(imageTaskService, times(1)).markAsFailed(eq(taskId), anyString());
         verify(acknowledgment, times(1)).acknowledge();
     }

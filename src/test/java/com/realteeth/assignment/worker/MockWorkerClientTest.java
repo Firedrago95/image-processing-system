@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.restclient.test.autoconfigure.RestClientTest;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -37,23 +38,54 @@ class MockWorkerClientTest {
     @Test
     void 외부_Mock_API로_이미지_처리_요청을_정상적으로_전송한다() {
         // given
-        String idempotencyKey = "test-idempotency-key";
-        String expectedBody = """
+        String imageUrl = "http://test.jpg";
+        String expectedRequestBody = """
             {
-                "idempotencyKey": "%s"
+                "imageUrl": "%s"
             }
-            """.formatted(idempotencyKey);
+            """.formatted(imageUrl);
+        String expectedResponseBody = """
+            {
+                "jobId": "mock-job-123",
+                "status": "PROCESSING"
+            }
+            """;
 
         mockServer.expect(requestTo("http://dev.realteeth.ai/mock/process"))
             .andExpect(method(HttpMethod.POST))
             .andExpect(header("X-API-KEY", "test-api-key-123"))
-            .andExpect(content().json(expectedBody))
-            .andRespond(withSuccess());
+            .andExpect(content().json(expectedRequestBody))
+            .andRespond(withSuccess().body(expectedResponseBody).headers(headers()));
 
         // when & then
-        assertThatCode(() -> mockWorkerClient.processImage(idempotencyKey))
+        assertThatCode(() -> mockWorkerClient.processImage(imageUrl))
             .doesNotThrowAnyException();
+    }
 
-        mockServer.verify();
+    @Test
+    void 외부_Mock_API로_작업_상태를_정상적으로_조회한다() {
+        String jobId = "mock-job-123";
+        String expectedResponseBody = """
+            {
+                "jobId": "mock-job-123",
+                "status": "COMPLETED",
+                "result": "success-url"
+            }
+            """;
+
+        mockServer.expect(requestTo("http://dev.realteeth.ai/mock/process/" + jobId))
+            .andExpect(method(HttpMethod.GET))
+            .andExpect(header("X-API-KEY", "test-api-key-123"))
+            .andRespond(withSuccess().body(expectedResponseBody).headers(headers()));
+
+        // when & then
+        assertThatCode(() -> mockWorkerClient.getJobStatus(jobId))
+            .doesNotThrowAnyException();
+    }
+
+    private HttpHeaders headers() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Content-Type", "application/json");
+        return headers;
     }
 }

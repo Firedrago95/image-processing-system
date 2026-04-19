@@ -34,6 +34,12 @@ public class ImageTask {
     @Column(name = "idempotency_key", nullable = false, updatable = false)
     private String idempotencyKey;
 
+    @Column(nullable = false)
+    private String imageUrl;
+
+    @Column(name = "external_job_id")
+    private String externalJobId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private TaskStatus status;
@@ -51,9 +57,14 @@ public class ImageTask {
     private LocalDateTime updatedAt;
 
     @Builder
-    private ImageTask(String idempotencyKey) {
+    private ImageTask(String idempotencyKey, String imageUrl) {
         this.idempotencyKey = idempotencyKey;
+        this.imageUrl = imageUrl;
         this.status = TaskStatus.PENDING;
+    }
+
+    public void updateExternalJobId(String externalJobId) {
+        this.externalJobId = externalJobId;
     }
 
     public void startProcessing() {

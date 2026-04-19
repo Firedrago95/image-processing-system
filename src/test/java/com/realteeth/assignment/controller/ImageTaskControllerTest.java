@@ -31,7 +31,10 @@ class ImageTaskControllerTest extends IntegrationTestSupport {
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Idempotency-Key", idempotencyKey);
-        HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+        headers.set("Content-Type", "application/json");
+
+        String requestBody = "{\"imageUrl\": \"http://example.com/test.jpg\"}";
+        HttpEntity<String> requestEntity = new HttpEntity<>(requestBody, headers);
 
         // when
         ResponseEntity<Map> response = restTemplate.exchange(
@@ -50,7 +53,7 @@ class ImageTaskControllerTest extends IntegrationTestSupport {
     @Test
     void 작업_상태_조회_API_호출_시_200_상태코드와_결과를_반환한다() {
         // given
-        ImageTask task = ImageTask.builder().idempotencyKey("test-inquiry-key").build();
+        ImageTask task = ImageTask.builder().idempotencyKey("test-inquiry-key").imageUrl("http://test.jpg").build();
         ImageTask savedTask = imageTaskRepository.save(task);
 
         // when
@@ -69,8 +72,8 @@ class ImageTaskControllerTest extends IntegrationTestSupport {
     @Test
     void 작업_목록_조회_API_호출_시_페이징된_결과를_반환한다() {
         // given
-        ImageTask task1 = ImageTask.builder().idempotencyKey("list-key-1").build();
-        ImageTask task2 = ImageTask.builder().idempotencyKey("list-key-2").build();
+        ImageTask task1 = ImageTask.builder().idempotencyKey("list-key-1").imageUrl("http://test.jpg1").build();
+        ImageTask task2 = ImageTask.builder().idempotencyKey("list-key-2").imageUrl("http://test.jpg2").build();
         imageTaskRepository.saveAll(List.of(task1, task2));
 
         // when

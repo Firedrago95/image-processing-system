@@ -2,6 +2,7 @@ package com.realteeth.assignment.worker;
 
 import com.realteeth.assignment.global.exception.BusinessException;
 import com.realteeth.assignment.service.ImageTaskService;
+import com.realteeth.assignment.worker.dto.response.ProcessStartResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.retry.RetryTemplate;
@@ -21,32 +22,25 @@ public class ImageTaskWorker {
     @KafkaListener(topics = "image-process-topic", groupId = "image-worker-group")
     public void processTask(String message, Acknowledgment ack) {
         Long taskId = Long.valueOf(message);
-        String idempotencyKey;
 
         try {
-            idempotencyKey = imageTaskService.markAsProcessing(taskId);
-        } catch (BusinessException e) {
-            log.warn("작업을 시작할 수 없습니다. Task ID: {}, 원인: {}", taskId, e.getMessage());
-            ack.acknowledge();
-            return;
-        }
-
-        try {
+            String imageUrl = imageTaskService.markAsProcessing(taskId);
             log.info("이미지 처리 API 호출 시작 Task ID: {}", taskId);
 
-            externalApiRetryTemplate.execute(() -> {
-                log.info("이미지 처리 API 호출 시도");
-                mockWorkerClient.processImage(idempotencyKey);
-                return null;
-            });
+            ProcessStartResponse startResponse = externalApiRetryTemplate.execute(() ->
+                mockWorkerClient.processImage(imageUrl)
+            );
 
-            imageTaskService.markAsCompleted(taskId);
-            log.info("이미지 처리 완료. Task ID: {}", taskId);
+            imageTaskService.updateExternalJobId(taskId, startResponse.jobId());
+
+            log.info("외부 작업 등록 완료. Task ID: {}, Job ID: {}", taskId, startResponse.jobId());
+        } catch (BusinessException e) {
+            log.warn("작업을 시작할 수 없습니다. Task ID: {}, 원인: {}", taskId, e.getMessage());
         } catch (Exception e) {
-            log.error("이미지 처리 API 호출 실패 Task ID: {}", taskId, e);
-            imageTaskService.markAsFailed(taskId, e.getMessage());
+            log.error("이미지 처리 통신 에러 Task ID: {}", taskId, e);
+            imageTaskService.markAsFailed(taskId, "외부 API 연동 실패");
         } finally {
-            ack.acknowledge();
+            ack.acknowledge(); // 🚀 즉시 커밋하여 스레드 반환
         }
     }
 }

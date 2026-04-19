@@ -14,6 +14,7 @@ import com.realteeth.assignment.domain.ImageTask;
 import com.realteeth.assignment.domain.TaskStatus;
 import com.realteeth.assignment.global.exception.BusinessException;
 import com.realteeth.assignment.repository.ImageTaskRepository;
+import com.realteeth.assignment.worker.MockWorkerClient;
 import com.realteeth.assignment.worker.dto.response.TaskResultResponse;
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +40,8 @@ class ImageTaskServiceTest {
     private ImageTaskRepository imageTaskRepository;
     @Mock
     private KafkaTemplate<String, String> kafkaTemplate;
+    @Mock
+    private MockWorkerClient mockWorkerClient;
 
     @InjectMocks
     private ImageTaskService imageTaskService;
@@ -47,13 +50,14 @@ class ImageTaskServiceTest {
     void 최초_요청_시_DB에_저장되고_Kafka로_메시지가_발행된다() {
         // given
         String idempotencyKey = "new-key-123";
-        ImageTask task = ImageTask.builder().idempotencyKey(idempotencyKey).build();
+        String imageUrl = "http://test.jpg";
+        ImageTask task = ImageTask.builder().idempotencyKey(idempotencyKey).imageUrl(imageUrl).build();
         ReflectionTestUtils.setField(task, "id", 1L);
 
         when(imageTaskRepository.save(any(ImageTask.class))).thenReturn(task);
 
         // when
-        Long resultId = imageTaskService.processImage(idempotencyKey);
+        Long resultId = imageTaskService.processImage(idempotencyKey, imageUrl);
 
         // then
         assertThat(resultId).isEqualTo(1L);
@@ -65,14 +69,15 @@ class ImageTaskServiceTest {
     void 중복_요청시_기존_작업_ID를_반환한다() {
         // given
         String idempotencyKey = "duplicate-key-123";
-        ImageTask existingTask = ImageTask.builder().idempotencyKey(idempotencyKey).build();
+        String imageUrl = "http://test.jpg";
+        ImageTask existingTask = ImageTask.builder().idempotencyKey(idempotencyKey).imageUrl(imageUrl).build();
         ReflectionTestUtils.setField(existingTask, "id", 2L);
 
         when(imageTaskRepository.save(any(ImageTask.class))).thenThrow(DataIntegrityViolationException.class);
         when(imageTaskRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.of(existingTask));
 
         // when
-        Long resultId = imageTaskService.processImage(idempotencyKey);
+        Long resultId = imageTaskService.processImage(idempotencyKey, imageUrl);
 
         // then
         assertThat(resultId).isEqualTo(2L);
@@ -133,15 +138,17 @@ class ImageTaskServiceTest {
         // given
         Long taskId = 1L;
         String idempotencyKey = "process-key-123";
-        ImageTask task = ImageTask.builder().idempotencyKey(idempotencyKey).build();
+        String imageUrl = "http://test.jpg";
+
+        ImageTask task = ImageTask.builder().idempotencyKey(idempotencyKey).imageUrl(imageUrl).build();
 
         when(imageTaskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
         // when
-        String returnedKey = imageTaskService.markAsProcessing(taskId);
+        String returnedUrl = imageTaskService.markAsProcessing(taskId);
 
         // then
-        assertThat(returnedKey).isEqualTo(idempotencyKey);
+        assertThat(returnedUrl).isEqualTo(imageUrl);
         assertThat(task.getStatus()).isEqualTo(TaskStatus.PROCESSING);
     }
 
@@ -218,11 +225,38 @@ class ImageTaskServiceTest {
     void 중복_요청_발생_후_기존_작업_조회에_실패하면_예외가_발생한다() {
         // given
         String idempotencyKey = "ghost-key-123";
+        String imageUrl = "http://test.jpg";
         when(imageTaskRepository.save(any(ImageTask.class))).thenThrow(DataIntegrityViolationException.class);
         when(imageTaskRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> imageTaskService.processImage(idempotencyKey))
+        assertThatThrownBy(() -> imageTaskService.processImage(idempotencyKey, imageUrl))
             .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void 상태_조회_시_PROCESSING이고_외부JobId가_있으면_외부API를_호출하여_COMPLETED로_동기화한다() {
+        // given
+        Long taskId = 1L;
+        String jobId = "ext-job-123";
+        ImageTask task = ImageTask.builder().idempotencyKey("sync-key").imageUrl("http://test.jpg").build();
+        ReflectionTestUtils.setField(task, "id", taskId);
+        task.startProcessing();
+        task.updateExternalJobId(jobId);
+
+        when(imageTaskRepository.findById(taskId)).thenReturn(Optional.of(task));
+
+        com.realteeth.assignment.worker.dto.response.ProcessStatusResponse mockResponse =
+            new com.realteeth.assignment.worker.dto.response.ProcessStatusResponse(jobId, "COMPLETED", "success-result");
+        when(mockWorkerClient.getJobStatus(jobId)).thenReturn(mockResponse);
+
+        // when
+        TaskResultResponse response = imageTaskService.getTaskResult(taskId);
+
+        // then
+        verify(mockWorkerClient, times(1)).getJobStatus(jobId);
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.COMPLETED);
+        assertThat(response.status()).isEqualTo(TaskStatus.COMPLETED);
+        assertThat(response.resultData()).isEqualTo("success-result");
     }
 }
