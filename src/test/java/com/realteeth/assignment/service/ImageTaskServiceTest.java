@@ -259,4 +259,36 @@ class ImageTaskServiceTest {
         assertThat(response.status()).isEqualTo(TaskStatus.COMPLETED);
         assertThat(response.resultData()).isEqualTo("success-result");
     }
+
+    @Test
+    void 외부_작업_ID를_성공적으로_업데이트한다() {
+        // given
+        Long taskId = 1L;
+        String jobId = "ext-job-456";
+        ImageTask task = ImageTask.builder().idempotencyKey("update-job-key").imageUrl("http://test.jpg").build();
+        ReflectionTestUtils.setField(task, "id", taskId);
+
+        task.startProcessing();
+
+        when(imageTaskRepository.findById(taskId)).thenReturn(Optional.of(task));
+
+        // when
+        imageTaskService.updateExternalJobId(taskId, jobId);
+
+        // then
+        assertThat(task.getExternalJobId()).isEqualTo(jobId);
+    }
+
+    @Test
+    void 외부_작업_ID_업데이트_시_존재하지_않는_작업이면_예외가_발생한다() {
+        // given
+        Long invalidTaskId = 999L;
+        String jobId = "ext-job-456";
+        when(imageTaskRepository.findById(invalidTaskId)).thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> imageTaskService.updateExternalJobId(invalidTaskId, jobId))
+            .isInstanceOf(BusinessException.class)
+            .hasMessageContaining("해당 작업을 찾을 수 없습니다");
+    }
 }
