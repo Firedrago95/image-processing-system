@@ -40,7 +40,7 @@ public class ImageTaskWorker {
             log.error("이미지 처리 통신 에러 Task ID: {}", taskId, e);
             imageTaskService.markAsFailed(taskId, "외부 API 연동 실패");
         } finally {
-            ack.acknowledge(); // 🚀 즉시 커밋하여 스레드 반환
+            ack.acknowledge();
         }
     }
 }

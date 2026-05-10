@@ -50,7 +50,7 @@ public class ImageTaskFacade {
                 ProcessStatusResponse extStatus = mockWorkerClient.getJobStatus(imageTask.getExternalJobId());
 
                 if ("COMPLETED".equals(extStatus.status())) {
-                    imageTaskService.markAsCompleted(taskId);
+                    imageTaskService.markAsCompleted(taskId, extStatus.result());
                     imageTask.complete(extStatus.result());
                     log.info("Task ID: {} 완료 동기화", taskId);
                 } else if ("FAILED".equals(extStatus.status())) {

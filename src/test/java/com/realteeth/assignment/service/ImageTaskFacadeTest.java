@@ -1,6 +1,7 @@
 package com.realteeth.assignment.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -10,6 +11,8 @@ import static org.mockito.Mockito.when;
 
 import com.realteeth.assignment.domain.ImageTask;
 import com.realteeth.assignment.domain.TaskStatus;
+import com.realteeth.assignment.global.exception.BusinessException;
+import com.realteeth.assignment.global.exception.ErrorCode;
 import com.realteeth.assignment.worker.MockWorkerClient;
 import com.realteeth.assignment.worker.dto.response.ProcessStatusResponse;
 import com.realteeth.assignment.worker.dto.response.TaskResultResponse;
@@ -57,21 +60,26 @@ class ImageTaskFacadeTest {
         // given
         Long taskId = 1L;
         String jobId = "job-777";
+        String expectedResult = "success-result-data"; // 테스트용 결과 데이터
+
         ImageTask task = ImageTask.builder().idempotencyKey("key").build();
         task.startProcessing();
         task.updateExternalJobId(jobId);
 
         when(imageTaskService.getTask(taskId)).thenReturn(task);
+
         when(mockWorkerClient.getJobStatus(jobId))
-            .thenReturn(new ProcessStatusResponse(jobId, "COMPLETED", "success-result"));
+            .thenReturn(new ProcessStatusResponse(jobId, "COMPLETED", expectedResult));
 
         // when
         TaskResultResponse response = imageTaskFacade.getTaskResult(taskId);
 
         // then
         verify(mockWorkerClient).getJobStatus(jobId);
-        verify(imageTaskService).markAsCompleted(taskId);
+        verify(imageTaskService).markAsCompleted(taskId, expectedResult);
+
         assertThat(response.status()).isEqualTo(TaskStatus.COMPLETED);
+        assertThat(response.resultData()).isEqualTo(expectedResult);
     }
 
     @Test
@@ -90,6 +98,43 @@ class ImageTaskFacadeTest {
 
         // then
         assertThat(response.status()).isEqualTo(TaskStatus.PROCESSING);
-        verify(imageTaskService, never()).markAsCompleted(any());
+        verify(imageTaskService, never()).markAsCompleted(any(), anyString());
+    }
+
+    @Test
+    void 외부_작업_상태가_FAILED라면_서비스의_실패_처리_메서드를_호출한다() {
+        // given
+        Long taskId = 1L;
+        String jobId = "ext-job-fail";
+        String errorMsg = "이미지 처리 중 메모리 부족";
+
+        ImageTask task = ImageTask.builder().idempotencyKey("fail-sync").build();
+        task.startProcessing();
+        task.updateExternalJobId(jobId);
+
+        when(imageTaskService.getTask(taskId)).thenReturn(task);
+        when(mockWorkerClient.getJobStatus(jobId))
+            .thenReturn(new ProcessStatusResponse(jobId, "FAILED", errorMsg));
+
+        // when
+        TaskResultResponse response = imageTaskFacade.getTaskResult(taskId);
+
+        // then
+        verify(imageTaskService).markAsFailed(taskId, errorMsg);
+        assertThat(response.status()).isEqualTo(TaskStatus.FAILED);
+        assertThat(response.resultData()).isEqualTo(errorMsg);
+    }
+
+    @Test
+    void 존재하지_않는_작업_조회_시_서비스의_예외가_그대로_전파된다() {
+        // given
+        Long invalidTaskId = 999L;
+        when(imageTaskService.getTask(invalidTaskId))
+            .thenThrow(new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        // when & then
+        assertThatThrownBy(() -> imageTaskFacade.getTaskResult(invalidTaskId))
+            .isInstanceOf(BusinessException.class)
+            .hasFieldOrPropertyWithValue("errorCode", ErrorCode.TASK_NOT_FOUND);
     }
 }

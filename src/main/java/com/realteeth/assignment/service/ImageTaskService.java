@@ -63,10 +63,10 @@ public class ImageTaskService {
     }
 
     @Transactional
-    public void markAsCompleted(Long taskId) {
+    public void markAsCompleted(Long taskId, String resultData) {
         ImageTask task = getTask(taskId);
 
-        task.complete("success");
+        task.complete(resultData);
     }
 
     @Transactional
