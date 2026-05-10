@@ -89,4 +89,9 @@ public class ImageTask {
         this.status = TaskStatus.FAILED;
         this.resultData = errorMessage;
     }
+
+    public boolean isProcessing() {
+        return this.status == TaskStatus.PROCESSING &&
+            this.externalJobId != null;
+    }
 }
