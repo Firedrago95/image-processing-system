@@ -8,6 +8,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.realteeth.assignment.domain.ImageTask;
 import com.realteeth.assignment.global.exception.BusinessException;
 import com.realteeth.assignment.global.exception.ErrorCode;
 import com.realteeth.assignment.service.ImageTaskService;
@@ -24,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(value = DisplayNameGenerator.ReplaceUnderscores.class)
@@ -60,7 +62,13 @@ class ImageTaskWorkerTest {
         String jobId = "mock-job-123";
         ProcessStartResponse mockResponse = new ProcessStartResponse(jobId, "PROCESSING");
 
-        when(imageTaskService.markAsProcessing(taskId)).thenReturn(imageUrl);
+        ImageTask task = ImageTask.builder()
+            .idempotencyKey("key-1")
+            .imageUrl(imageUrl)
+            .build();
+        ReflectionTestUtils.setField(task, "id", taskId);
+
+        when(imageTaskService.markAsProcessing(taskId)).thenReturn(task);
         when(mockWorkerClient.processImage(imageUrl)).thenReturn(mockResponse);
 
         // when
@@ -78,6 +86,7 @@ class ImageTaskWorkerTest {
         String message = "2";
         Long taskId = 2L;
 
+        // 상태가 맞지 않아 예외가 발생하는 상황은 기존과 동일
         when(imageTaskService.markAsProcessing(taskId))
             .thenThrow(new BusinessException(ErrorCode.INVALID_TASK_STATUS));
 
@@ -100,7 +109,13 @@ class ImageTaskWorkerTest {
         String jobId = "mock-job-456";
         ProcessStartResponse mockResponse = new ProcessStartResponse(jobId, "PROCESSING");
 
-        when(imageTaskService.markAsProcessing(taskId)).thenReturn(imageUrl);
+        ImageTask task = ImageTask.builder()
+            .idempotencyKey("key-4")
+            .imageUrl(imageUrl)
+            .build();
+        ReflectionTestUtils.setField(task, "id", taskId);
+
+        when(imageTaskService.markAsProcessing(taskId)).thenReturn(task);
 
         when(mockWorkerClient.processImage(imageUrl))
             .thenThrow(new RuntimeException("API 1차 실패"))
@@ -124,7 +139,13 @@ class ImageTaskWorkerTest {
         Long taskId = 3L;
         String imageUrl = "http://example.com/test.jpg";
 
-        when(imageTaskService.markAsProcessing(taskId)).thenReturn(imageUrl);
+        ImageTask task = ImageTask.builder()
+            .idempotencyKey("key-3")
+            .imageUrl(imageUrl)
+            .build();
+        ReflectionTestUtils.setField(task, "id", taskId);
+
+        when(imageTaskService.markAsProcessing(taskId)).thenReturn(task);
         when(mockWorkerClient.processImage(imageUrl)).thenThrow(new RuntimeException("API Timeout"));
 
         // when

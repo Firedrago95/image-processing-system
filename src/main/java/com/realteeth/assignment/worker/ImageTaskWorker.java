@@ -1,5 +1,6 @@
 package com.realteeth.assignment.worker;
 
+import com.realteeth.assignment.domain.ImageTask;
 import com.realteeth.assignment.global.exception.BusinessException;
 import com.realteeth.assignment.service.ImageTaskService;
 import com.realteeth.assignment.worker.dto.response.ProcessStartResponse;
@@ -24,11 +25,11 @@ public class ImageTaskWorker {
         Long taskId = Long.valueOf(message);
 
         try {
-            String imageUrl = imageTaskService.markAsProcessing(taskId);
+            ImageTask task = imageTaskService.markAsProcessing(taskId);
             log.info("이미지 처리 API 호출 시작 Task ID: {}", taskId);
 
             ProcessStartResponse startResponse = externalApiRetryTemplate.execute(() ->
-                mockWorkerClient.processImage(imageUrl)
+                mockWorkerClient.processImage(task.getImageUrl())
             );
 
             imageTaskService.updateExternalJobId(taskId, startResponse.jobId());

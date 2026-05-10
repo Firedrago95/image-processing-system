@@ -47,33 +47,36 @@ public class ImageTaskService {
     }
 
     @Transactional
-    public String markAsProcessing(Long taskId) {
+    public ImageTask markAsProcessing(Long taskId) {
         ImageTask task = getTask(taskId);
 
         task.startProcessing();
-        return task.getImageUrl();
+        return task;
     }
 
     @Transactional
-    public void updateExternalJobId(Long taskId, String externalJobId) {
+    public ImageTask updateExternalJobId(Long taskId, String externalJobId) {
         ImageTask task = getTask(taskId);
 
         task.updateExternalJobId(externalJobId);
         log.info("Task ID: {} 에 External Job ID: {} 매핑 완료", taskId, externalJobId);
+        return task;
     }
 
     @Transactional
-    public void markAsCompleted(Long taskId, String resultData) {
+    public ImageTask markAsCompleted(Long taskId, String resultData) {
         ImageTask task = getTask(taskId);
 
         task.complete(resultData);
+        return task;
     }
 
     @Transactional
-    public void markAsFailed(Long taskId, String errorMessage) {
+    public ImageTask markAsFailed(Long taskId, String errorMessage) {
         ImageTask task = getTask(taskId);
 
         task.fail(errorMessage);
+        return task;
     }
 
     @Transactional(readOnly = true)

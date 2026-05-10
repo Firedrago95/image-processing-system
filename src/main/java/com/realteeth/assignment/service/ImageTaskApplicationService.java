@@ -36,32 +36,31 @@ public class ImageTaskApplicationService {
     public TaskResultResponse getTaskResult(Long taskId) {
         ImageTask imageTask = imageTaskService.getTask(taskId);
 
-        updateProcessStatus(taskId, imageTask);
-        return TaskResultResponse.from(imageTask);
+        ImageTask updatedTask = updateProcessStatus(taskId, imageTask);
+        return TaskResultResponse.from(updatedTask);
     }
 
     public Page<TaskResultResponse> getTasks(Pageable pageable) {
         return imageTaskService.getTasks(pageable);
     }
 
-    private void updateProcessStatus(Long taskId, ImageTask imageTask) {
+    private ImageTask updateProcessStatus(Long taskId, ImageTask imageTask) {
         if (imageTask.isProcessing()) {
             try {
                 ProcessStatusResponse extStatus = mockWorkerClient.getJobStatus(imageTask.getExternalJobId());
 
                 if ("COMPLETED".equals(extStatus.status())) {
-                    imageTaskService.markAsCompleted(taskId, extStatus.result());
-                    imageTask.complete(extStatus.result());
                     log.info("Task ID: {} 완료 동기화", taskId);
+                    return imageTaskService.markAsCompleted(taskId, extStatus.result());
                 } else if ("FAILED".equals(extStatus.status())) {
                     String error = extStatus.result() != null ? extStatus.result() : "외부 작업 실패";
-                    imageTaskService.markAsFailed(taskId, error);
-                    imageTask.fail(error);
                     log.warn("Task ID: {} 실패 동기화", taskId);
+                    return imageTaskService.markAsFailed(taskId, error);
                 }
             } catch (Exception e) {
                 log.error("Task ID: {} 동기화 에러", taskId, e);
             }
         }
+        return imageTask;
     }
 }
