@@ -28,7 +28,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayNameGeneration(value = DisplayNameGenerator.ReplaceUnderscores.class)
 @ExtendWith(MockitoExtension.class)
-class ImageTaskFacadeTest {
+class ImageTaskApplicationServiceTest {
 
     @Mock
     private ImageTaskService imageTaskService;
@@ -38,7 +38,7 @@ class ImageTaskFacadeTest {
     private KafkaTemplate<String, String> kafkaTemplate;
 
     @InjectMocks
-    private ImageTaskFacade imageTaskFacade;
+    private ImageTaskApplicationService imageTaskApplicationService;
 
     @Test
     void 요청_시_저장하고_PENDING_상태인_경우에만_Kafka_메시지를_보낸다() {
@@ -48,7 +48,7 @@ class ImageTaskFacadeTest {
         when(imageTaskService.createAndSaveTask(anyString(), anyString())).thenReturn(task);
 
         // when
-        Long id = imageTaskFacade.requestImageProcessing("key", "url");
+        Long id = imageTaskApplicationService.requestImageProcessing("key", "url");
 
         // then
         assertThat(id).isEqualTo(100L);
@@ -72,7 +72,7 @@ class ImageTaskFacadeTest {
             .thenReturn(new ProcessStatusResponse(jobId, "COMPLETED", expectedResult));
 
         // when
-        TaskResultResponse response = imageTaskFacade.getTaskResult(taskId);
+        TaskResultResponse response = imageTaskApplicationService.getTaskResult(taskId);
 
         // then
         verify(mockWorkerClient).getJobStatus(jobId);
@@ -94,7 +94,7 @@ class ImageTaskFacadeTest {
         when(mockWorkerClient.getJobStatus(anyString())).thenThrow(new RuntimeException("API Fail"));
 
         // when
-        TaskResultResponse response = imageTaskFacade.getTaskResult(taskId);
+        TaskResultResponse response = imageTaskApplicationService.getTaskResult(taskId);
 
         // then
         assertThat(response.status()).isEqualTo(TaskStatus.PROCESSING);
@@ -117,7 +117,7 @@ class ImageTaskFacadeTest {
             .thenReturn(new ProcessStatusResponse(jobId, "FAILED", errorMsg));
 
         // when
-        TaskResultResponse response = imageTaskFacade.getTaskResult(taskId);
+        TaskResultResponse response = imageTaskApplicationService.getTaskResult(taskId);
 
         // then
         verify(imageTaskService).markAsFailed(taskId, errorMsg);
@@ -133,7 +133,7 @@ class ImageTaskFacadeTest {
             .thenThrow(new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
         // when & then
-        assertThatThrownBy(() -> imageTaskFacade.getTaskResult(invalidTaskId))
+        assertThatThrownBy(() -> imageTaskApplicationService.getTaskResult(invalidTaskId))
             .isInstanceOf(BusinessException.class)
             .hasFieldOrPropertyWithValue("errorCode", ErrorCode.TASK_NOT_FOUND);
     }

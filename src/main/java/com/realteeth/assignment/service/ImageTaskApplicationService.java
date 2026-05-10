@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ImageTaskFacade {
+public class ImageTaskApplicationService {
 
     private static final String TOPIC = "image-process-topic";
 

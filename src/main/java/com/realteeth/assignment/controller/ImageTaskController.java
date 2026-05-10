@@ -2,7 +2,7 @@ package com.realteeth.assignment.controller;
 
 import com.realteeth.assignment.controller.dto.request.TaskRequest;
 import com.realteeth.assignment.controller.dto.response.TaskResponse;
-import com.realteeth.assignment.service.ImageTaskFacade;
+import com.realteeth.assignment.service.ImageTaskApplicationService;
 import com.realteeth.assignment.worker.dto.response.TaskResultResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -24,14 +24,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ImageTaskController {
 
-    private final ImageTaskFacade imageTaskFacade;
+    private final ImageTaskApplicationService imageTaskApplicationService;
 
     @PostMapping
     public ResponseEntity<TaskResponse> processImage(
         @RequestHeader("Idempotency-Key") String idempotencyKey,
         @RequestBody TaskRequest request
     ) {
-        Long taskId = imageTaskFacade.requestImageProcessing(idempotencyKey, request.imageUrl());
+        Long taskId = imageTaskApplicationService.requestImageProcessing(idempotencyKey, request.imageUrl());
 
         return ResponseEntity.status(HttpStatus.ACCEPTED)
             .body(new TaskResponse(taskId));
@@ -39,7 +39,7 @@ public class ImageTaskController {
 
     @GetMapping("/{taskId}")
     public ResponseEntity<TaskResultResponse> getTaskResult(@PathVariable Long taskId) {
-        TaskResultResponse response = imageTaskFacade.getTaskResult(taskId);
+        TaskResultResponse response = imageTaskApplicationService.getTaskResult(taskId);
         return ResponseEntity.ok(response);
     }
 
@@ -47,7 +47,7 @@ public class ImageTaskController {
     public ResponseEntity<Page<TaskResultResponse>> getTasks(
         @PageableDefault(size = 10, sort="createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Page<TaskResultResponse> responses = imageTaskFacade.getTasks(pageable);
+        Page<TaskResultResponse> responses = imageTaskApplicationService.getTasks(pageable);
         return ResponseEntity.ok(responses);
     }
 }
